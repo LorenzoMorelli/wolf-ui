@@ -31,11 +31,32 @@ public partial class ControllerMap : Resource
         set
         {
             if (value != _controller)
+            {
                 EmitSignalUsedControllerChanged(value);
+                // Keyboard/mouse keeps the last pad's layout, otherwise the next press on that pad is misread
+                if (value != ControllerType.None)
+                    ApplyFaceButtonLayout(value == ControllerType.Switch);
+            }
             _controller = value;
         }
     }
     public ControllerType Controller => UsedController;
+
+    // Godot binds joypad buttons by position, but Nintendo pads confirm with the right button (labelled A)
+    private static void ApplyFaceButtonLayout(bool nintendo)
+    {
+        // [Tool] class: the editor's InputMap shares its events with the project settings
+        if (Engine.IsEditorHint()) return;
+        SetJoypadButton("ui_accept", nintendo ? JoyButton.B : JoyButton.A);
+        SetJoypadButton("ui_cancel", nintendo ? JoyButton.A : JoyButton.B);
+    }
+
+    private static void SetJoypadButton(string action, JoyButton button)
+    {
+        foreach (var @event in InputMap.ActionGetEvents(action))
+            if (@event is InputEventJoypadButton { ButtonIndex: JoyButton.A or JoyButton.B } joypadButton)
+                joypadButton.ButtonIndex = button;
+    }
 
 #nullable disable // Export Variables are Godots Job
     public ControllerMap()
